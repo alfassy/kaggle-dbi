@@ -179,6 +179,34 @@ dog_breeds_category_to_int = {
     'yorkshire_terrier': 25
 }
 
+oxford_dog_breeds_to_kaggle = {
+    'american_bulldog': None,
+    'american_pit_bull_terrier': None,
+    'basset_hound': 'basset',  # high acc
+    'beagle': 'beagle',  # low acc
+    'boxer': 'boxer',  # high acc
+    'chihuahua': 'chihuahua',  # med acc
+    'english_cocker_spaniel': 'cocker_spaniel',  # med acc
+    'english_setter': 'english_setter',   # med acc
+    'german_shorthaired': 'german_short-haired_pointer',  # high acc
+    'great_pyrenees': 'great_pyrenees',  # high acc
+    'havanese': None,
+    'japanese_chin': 'japanese_spaniel',   # high acc
+    'keeshond': 'keeshond',  # med acc
+    'leonberger': 'leonberg',  # high acc
+    'miniature_pinscher': 'miniature_pinscher',  # high acc
+    'newfoundland': 'newfoundland',  # high acc
+    'pomeranian': 'pomeranian',  # high acc
+    'pug': 'pug',  # high acc
+    'saint_bernard': 'saint_bernard',  # med acc
+    'samoyed': 'samoyed',  # high acc
+    'scottish_terrier': 'scotch_terrier',  # high acc
+    'shiba_inu': None,
+    'staffordshire_bull_terrier': 'staffordshire_bullterrier',  # low acc
+    'wheaten_terrier': 'soft-coated_wheaten_terrier',  # med acc
+    'yorkshire_terrier': 'yorkshire_terrier'   # low acc
+}
+
 
 class oxford_dataset(Dataset):
     def __init__(self, img_folder, transform=None):
@@ -187,6 +215,7 @@ class oxford_dataset(Dataset):
         self.transform = transform
         self.class_2_idx = dog_breeds_category_to_int
         self.idx_2_class = dog_breeds_int_2_category
+        self.oxford_dog_breeds_to_kaggle = oxford_dog_breeds_to_kaggle
         # check that all the imgs has labels in the csv
         labels_names_list = []
         labels_int_list = []
@@ -212,7 +241,7 @@ class oxford_dataset(Dataset):
         # print([self.labels_names[i] for i in randInd])
         # print([self.labels_int_list[i] for i in randInd])
         # print([self.dogs_img_paths_list[i] for i in randInd])
-        print('dataset size: ', self.img_num)
+        print('Oxford dataset size: ', self.img_num)
 
     def __len__(self):
         return self.img_num

@@ -19,7 +19,7 @@ import logging
 from PIL import Image
 import pandas as pd
 from pathlib import Path
-from scripts.testing_functions import calc_accuracy
+from scripts.testing_functions import calc_accuracy, calc_per_class_accuracy
 import pretrainedmodels
 from scripts.getting_features import get_feature_vecs, DropClassifier
 
@@ -48,21 +48,24 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 # parser.add_argument('--visdom_server', type=str, default='dccxc112.pok.ibm.com', help='visdom server address')
-parser.add_argument('--env_name', type=str, default='DBINasnet19OxfordPretrained', help='Environment name for naming purposes')
+parser.add_argument('--env_name', type=str, default='DBINasnet19Oxford', help='Environment name for naming purposes')
 # Checkpoints
 
 parser.add_argument('-c', '--checkpoint', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/', type=str, metavar='PATH',
                     help='path to save checkpoint (default: checkpoint)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+parser.add_argument('--resume_top_module', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;12;18best.pkl', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;12;18best.pkl 0.27
 # kaggle_dbiDBINasnet192019;3;24;18;29best.pkl
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/inception_trainDBIInceptionHalf2019;3;24;3;7best.pkl
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;24;16;10best.pkl
 # Architecture
 parser.add_argument('--transfer_oxford', default='',
                     type=str, metavar='PATH', help='path to model pretrained on oxford pets checkpoint (default: none)')
-parser.add_argument('--pretrained_kaggle', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;0;4best.pkl',
+parser.add_argument('--pretrained_kaggle', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;19;0last.pkl',
                     type=str, metavar='PATH', help='path to model pretrained kaggle for the last layer (default: none)')
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/oxford/oxfordNasnet192019;3;24;19;21best.pkl
+# DBINasnet19OxfordPretrained2019;3;27;0;4best.pkl
 parser.add_argument('--arch', '-a', metavar='ARCH', default='nasnet',
                     help='model architecture:(resnet18/ inception/ nasnet)')
 parser.add_argument('--depth', type=int, default=29, help='Model depth.')
@@ -73,6 +76,12 @@ parser.add_argument('--widen-factor', type=int, default=4, help='Widen factor. 4
 parser.add_argument('--train_path', default='./data/kaggle_dbi/train', type=str, metavar='PATH', help='path to train ccsn data')
 parser.add_argument('--train_labels_path', default='./data/kaggle_dbi/labels.csv', type=str, metavar='PATH', help='path to train ccsn data')
 parser.add_argument('--test_path', default='./data/kaggle_dbi/test', type=str, metavar='PATH', help='path to val ccsn data')
+parser.add_argument('--file_path_inputs_npy_to_load',
+                    default='',
+                    type=str, metavar='PATH', help='path to saved feature vecs')
+parser.add_argument('--file_path_targets_npy_to_load',
+                    default='',
+                    type=str, metavar='PATH', help='path to saved targets')
 
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--debug_mode', type=int, default=0, help='activate fast debug mode?(default: 0) 0(no)/1(yes)')
@@ -82,6 +91,8 @@ parser.add_argument('--freezeLayers', type=str, default='all',
 parser.add_argument('--freezeLayersNum', type=int, default=19,
                     help='how many layers should we freeze? options:int')
 
+parser.add_argument('--oxford_augment', type=int, default=1, help='add oxfords images for training 0(no)/1(yes)')
+parser.add_argument('--print_per_class_acc', type=int, default=0, help='print per class accuracy 0(no)/1(yes)')
 parser.add_argument('--evaluate', type=int, default=0, help='evaluate (ONLY!) model on validation and test sets? 0(no)/1(yes)')
 parser.add_argument('--use_saved_feature_vecs', type=int, default=1, help='Save feature vecs for entire data first for better performance in long runs 0(no)/1(yes)')
 parser.add_argument('--random_angle', type=float, default=10, help='Angle of random augmentation.')
@@ -109,13 +120,14 @@ np.random.seed(args.manualSeed)
 if use_cuda:
     torch.cuda.manual_seed_all(args.manualSeed)
 
-best_val_acc = 0  # best test accuracy
-
+best_val_loss = 0  # best test loss
+best_val_acc = 0   # best test accuracy
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 DoubleTensor = torch.cuda.DoubleTensor if use_cuda else torch.DoubleTensor
 
 
 def main():
+    global best_val_loss
     global best_val_acc
     start_epoch = args.start_epoch  # start from epoch 0 or last checkpoint epoch
     env_name = args.env_name
@@ -189,8 +201,8 @@ def main():
         trainODDataset = DBI_dataset_ensemble(fp_train, df_train, df_test, is_train=True, transform=train_transform2)
         testODDataset = DBI_dataset_ensemble(fp_test, df_train, df_test, is_train=False, transform=test_transform)
     else:
-        trainODDataset = DBI_dataset(fp_train, df_train, df_test, is_train=True, transform=train_transform2)
-        testODDataset = DBI_dataset(fp_test, df_train, df_test, is_train=False, transform=test_transform)
+        trainODDataset = DBI_dataset(fp_train, df_train, df_test, args.oxford_augment, is_train=True, transform=train_transform2)
+        testODDataset = DBI_dataset(fp_test, df_train, df_test, args.oxford_augment, is_train=False, transform=test_transform)
 
     # validation_split = 0.2
     # dataset_size = len(trainODDataset)
@@ -305,7 +317,7 @@ def main():
         # args.checkpoint = os.path.dirname(args.ensemble_path_a)
         checkpointa = torch.load(args.ensemble_path_a)
         checkpointb = torch.load(args.ensemble_path_b)
-        # best_val_acc = checkpoint['best_val_acc']
+        # best_val_loss = checkpoint['best_val_loss']
         # start_epoch = checkpoint['epoch']
         model_a.load_state_dict(checkpointa['state_dict'])
         # optimizera.load_state_dict(checkpointa['optimizer'])
@@ -321,7 +333,7 @@ def main():
         assert os.path.isfile(args.resume), 'Error: no checkpoint directory found!'
         # args.checkpoint = os.path.dirname(args.resume)
         checkpoint = torch.load(args.resume)
-        best_val_acc = checkpoint['best_val_acc']
+        best_val_loss = checkpoint['best_val_loss']
         start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -375,45 +387,22 @@ def main():
     if args.use_saved_feature_vecs == 1:
         args.epochs = 10000
         # load feature vectors into memory
-        # feature_vecs_inputs, feature_vecs_targets = get_feature_vecs(train_loader_all, model)
-        file_path_inputs = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputs.pkl'
-        file_path_inputs_npy = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputs.npy'
-        # with open(file_path_inputs, 'wb') as f:
-        #     torch.save(feature_vecs_inputs, f)
-        # np.save(file_path_inputs_npi, feature_vecs_inputs)
-        feature_vecs_inputs = np.load(file_path_inputs_npy)
-        file_path_targets = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targets.pkl'
-        file_path_targets_npy = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targets.npy'
-        # with open(file_path_targets, 'wb') as f:
-        #     torch.save(feature_vecs_targets, f)
-        # np.save(file_path_targets_npi, feature_vecs_targets)
-        feature_vecs_targets = np.load(file_path_targets_npy)
+        checkpoint = torch.load(args.pretrained_kaggle)
+        model.load_state_dict(checkpoint['state_dict'])
+        model.eval()
+        if args.file_path_inputs_npy_to_load:
+            feature_vecs_inputs = np.load(args.file_path_inputs_npy_to_load)
+            feature_vecs_targets = np.load(args.file_path_targets_npy_to_load)
+        else:
+            feature_vecs_inputs, feature_vecs_targets = get_feature_vecs(train_loader_all, model)
+            file_path_inputs_npy_to_save = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputs' + str(vis_file_out) + '.npy'
+            np.save(file_path_inputs_npy_to_save, feature_vecs_inputs)
+            file_path_targets_npy_to_save = 'C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targets' + str(vis_file_out) + '.npy'
+            np.save(file_path_targets_npy_to_save, feature_vecs_targets)
         np.random.seed(args.manualSeed)
-        permutation = np.random.permutation(feature_vecs_inputs.shape[0])
-        x_train = feature_vecs_inputs[permutation][:-int(feature_vecs_inputs.shape[0] // 5)]
-        x_val = feature_vecs_inputs[permutation][-int(feature_vecs_inputs.shape[0] // 5):]
-        y_train = feature_vecs_targets[permutation][:-int(feature_vecs_targets.shape[0] // 5)]
-        y_val = feature_vecs_targets[permutation][-int(feature_vecs_targets.shape[0] // 5):]
-
-        top_only_train_dataset = TensorDataset(torch.FloatTensor(x_train), torch.LongTensor(y_train))
-
-        top_only_val_dataset = TensorDataset(torch.FloatTensor(x_val), torch.LongTensor(y_val))
-
-        train_loader = DataLoader(top_only_train_dataset, batch_size=4096, shuffle=True)
-        val_loader = DataLoader(top_only_val_dataset, batch_size=4096, shuffle=True)
-        assert os.path.isfile(args.pretrained_kaggle), 'Error: no checkpoint directory found!'
-        # checkpoint = torch.load(args.pretrained_kaggle)
-        # model.load_state_dict(checkpoint['state_dict'])
-        classifierModel = DropClassifier()
-        classifierModel.load_state_dict(torch.load(args.pretrained_kaggle), strict=False)
-        classifierModel.last_linear.load_state_dict(list(model.children())[-1].state_dict())
-        # del model
-        optimizer = optim.Adam(classifierModel.parameters(), lr=args.lr)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=200, verbose=True, factor=args.lr_reduce)
-        classifierModel.cuda()
-    else:
+        # permutation = np.random.permutation(feature_vecs_inputs.shape[0])
         validation_split = 0.2
-        dataset_size = len(trainODDataset)
+        dataset_size = trainODDataset.img_num
         if args.debug_mode == 1:
             indices = list(range(int(dataset_size / 18)))
         else:
@@ -422,7 +411,64 @@ def main():
         np.random.seed(args.manualSeed)
         np.random.shuffle(indices)
         train_indices, val_indices = indices[split:], indices[:split]
+        x_train = feature_vecs_inputs[train_indices]
+        x_val = feature_vecs_inputs[val_indices]
+        y_train = feature_vecs_targets[train_indices]
+        y_val = feature_vecs_targets[val_indices]
 
+        if args.oxford_augment == 1:
+            x_train = np.concatenate((x_train, feature_vecs_inputs[range(trainODDataset.img_num, trainODDataset.img_num_with_oxford)]))
+            print(trainODDataset.img_num)
+            print(trainODDataset.img_num_with_oxford)
+            print(x_train.shape)
+            y_train = np.concatenate((y_train, feature_vecs_targets[range(trainODDataset.img_num, trainODDataset.img_num_with_oxford)]), axis=0)
+            print(y_train.shape)
+            exit()
+        # x_train = feature_vecs_inputs[permutation][:-int(feature_vecs_inputs.shape[0] // 5)]
+        # x_val = feature_vecs_inputs[permutation][-int(feature_vecs_inputs.shape[0] // 5):]
+        # y_train = feature_vecs_targets[permutation][:-int(feature_vecs_targets.shape[0] // 5)]
+        # y_val = feature_vecs_targets[permutation][-int(feature_vecs_targets.shape[0] // 5):]
+        top_only_train_dataset = TensorDataset(torch.FloatTensor(x_train), torch.LongTensor(y_train))
+        top_only_val_dataset = TensorDataset(torch.FloatTensor(x_val), torch.LongTensor(y_val))
+        train_loader = DataLoader(top_only_train_dataset, batch_size=4096, shuffle=True)
+        val_loader = DataLoader(top_only_val_dataset, batch_size=4096, shuffle=True)
+        assert os.path.isfile(args.pretrained_kaggle), 'Error: no checkpoint directory found!'
+
+        # model.load_state_dict(checkpoint['state_dict'])
+        classifierModel = DropClassifier()
+        # classifierModel.load_state_dict(torch.load(args.pretrained_kaggle), strict=False)
+        # print(list(model.children()))
+
+        if args.pretrained_kaggle:
+            checkpoint = torch.load(args.pretrained_kaggle)
+
+            # classifierModel.last_linear.load_state_dict(list(model.children())[-1].state_dict())
+            classifierModel = DropClassifier(checkpoint['state_dict']['last_linear.weight'], checkpoint['state_dict']['last_linear.bias'])
+            # classifierModel.last_linear.weight.data.fill_(checkpoint['state_dict']['last_linear.weight'])
+            # classifierModel.last_linear.bias.data = checkpoint['state_dict']['last_linear.bias']
+            print(torch.load(args.pretrained_kaggle)['state_dict'])
+            print(classifierModel.last_linear.weight)
+            del checkpoint
+        if args.resume_top_module:
+            classifierModel.load_state_dict(torch.load(args.resume_top_module)['state_dict'])
+        # del model
+        optimizer = optim.Adam(classifierModel.parameters(), lr=args.lr)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=200, verbose=True, factor=args.lr_reduce)
+        classifierModel.cuda()
+    else:
+        validation_split = 0.2
+        dataset_size = trainODDataset.img_num
+        if args.debug_mode == 1:
+            indices = list(range(int(dataset_size / 18)))
+        else:
+            indices = list(range(dataset_size))
+        split = int(np.floor(validation_split * len(indices)))
+        np.random.seed(args.manualSeed)
+        np.random.shuffle(indices)
+        train_indices, val_indices = indices[split:], indices[:split]
+        print("train indices before oxford: ", len(train_indices))
+        if args.oxford_augment == 1:
+            train_indices = np.concatenate((train_indices, range(trainODDataset.img_num, trainODDataset.img_num_with_oxford)), axis=0)
         # Creating PT data samplers and loaders:
         train_sampler = SubsetRandomSampler(train_indices)
         valid_sampler = SubsetRandomSampler(val_indices)
@@ -434,13 +480,29 @@ def main():
     if args.evaluate == 1:
         print('\nEvaluation only')
         logger.info('\nEvaluation only')
+
         if args.ensemble == 1:
             val_loss, val_acc = val_ensemble(val_loader, model, criterion, use_cuda, scheduler, model_a, model_b)
         else:
-            val_loss, val_acc = val(val_loader, model, criterion, use_cuda, scheduler)
-        print("Val Loss: {}, Val Acc: {}".format(val_loss, val_acc))
-        logger.info("Val Loss: {}, Val Acc: {}".format(val_loss, val_acc))
-        test(test_loader, model, use_cuda, df_test, vis_file_out)
+            if args.use_saved_feature_vecs == 1:
+                val_loss, val_acc, class_acc_list = val(val_loader, classifierModel, criterion, use_cuda, scheduler)
+            else:
+                val_loss, val_acc, class_acc_list = val(val_loader, model, criterion, use_cuda, scheduler)
+            print("Val Loss: {}, Val Acc: {}".format(val_loss, val_acc))
+            logger.info("Val Loss: {}, Val Acc: {}".format(val_loss, val_acc))
+            if args.print_per_class_acc:
+                for class_ind, class_acc in enumerate(class_acc_list):
+                    print('Class {} accuracy: {}'.format(class_ind, class_acc))
+            exit()
+            if args.use_saved_feature_vecs == 1:
+                # feature_vecs_inputs, feature_vecs_targets = get_feature_vecs(test_loader, model, test_mode=True)
+                # print(feature_vecs_targets)
+                # top_only_test_dataset = TensorDataset(torch.FloatTensor(feature_vecs_inputs), feature_vecs_targets)
+                # test_loader = DataLoader(top_only_test_dataset, batch_size=4096, shuffle=True)
+                test(test_loader, model, classifierModel, use_cuda, df_test, vis_file_out)
+            else:
+                test(test_loader, model, _, use_cuda, df_test, vis_file_out)
+
         return
 
     # Train and val
@@ -460,33 +522,40 @@ def main():
             raise RuntimeError("ensemble should only be ran in evaluation mode (evaluate=1)")
         else:
             if args.use_saved_feature_vecs == 1:
-                val_loss, val_acc = val(val_loader, classifierModel, criterion, use_cuda, scheduler)
+                val_loss, val_acc, class_acc_list = val(val_loader, classifierModel, criterion, use_cuda, scheduler)
             else:
-                val_loss, val_acc = val(val_loader, model, criterion, use_cuda, scheduler)
+                val_loss, val_acc, class_acc_list = val(val_loader, model, criterion, use_cuda, scheduler)
         print("learning rate: {}".format(get_learning_rate(optimizer)))
         logger.info("learning rate: {}".format(get_learning_rate(optimizer)))
         print("train loss: {}, train accuracy: {}".format(train_loss, train_acc))
         logger.info("train loss: {}, train accuracy: {}".format(train_loss, train_acc))
         print("val loss: {}, val accuracy: {}".format(val_loss, val_acc))
         logger.info("val loss: {}, val accuracy: {}".format(val_loss, val_acc))
+
+        if args.print_per_class_acc:
+            for class_ind, class_acc in enumerate(class_acc_list):
+                print('Class {} accuracy: {}'.format(class_ind, class_acc))
         # log loss and accuracy
 
         # save model
-        is_best = val_acc > best_val_acc
+        is_best = val_loss < best_val_loss
+        best_val_loss = min(val_loss, best_val_loss)
         best_val_acc = max(val_acc, best_val_acc)
         filename = str(vis_file_out)
         if args.use_saved_feature_vecs == 1:
-            save_checkpoint({'epoch': epoch + 1, 'state_dict': classifierModel.state_dict(), 'acc': val_acc, 'best_val_acc': best_val_acc,
+            save_checkpoint({'epoch': epoch + 1, 'state_dict': classifierModel.state_dict(), 'loss': val_loss, 'best_val_loss': best_val_loss,
                             'optimizer': optimizer.state_dict()
                              }, is_best, epoch, checkpoint=args.checkpoint, filename=filename)
         else:
-            save_checkpoint({'epoch': epoch + 1, 'state_dict': model.state_dict(), 'acc': val_acc, 'best_val_acc': best_val_acc,
+            save_checkpoint({'epoch': epoch + 1, 'state_dict': model.state_dict(), 'acc': val_loss, 'best_val_loss': best_val_loss,
                              'optimizer': optimizer.state_dict()
                              }, is_best, epoch, checkpoint=args.checkpoint, filename=filename)
 
     # test_loss, test_acc = test(test_loader, model, criterion, use_cuda, scheduler, df_test, vis_file_out)
-    print('Best val acc: '.format(best_val_acc))
-    logger.info('Best val acc: '.format(best_val_acc))
+    print('Best val acc: {}'.format(best_val_acc))
+    print('Best val loss: {}'.format(best_val_loss))
+    logger.info('Best val acc: {}'.format(best_val_acc))
+    logger.info('Best val loss: {}'.format(best_val_loss))
 
 
 def train(train_loader, model, criterion, optimizer, epoch, use_cuda):
@@ -563,8 +632,12 @@ def val(val_loader, model, criterion, cuda, scheduler):
             all_batch_outputs = np.concatenate((all_batch_outputs, outputs_clone), axis=0)
             all_batch_targets = np.concatenate((all_batch_targets, targets_clone), axis=0)
     accuracy = calc_accuracy(all_batch_outputs, all_batch_targets)
+    if args.print_per_class_acc:
+        per_class_accuracy = calc_per_class_accuracy(all_batch_outputs, all_batch_targets)
+    else:
+        per_class_accuracy = None
     scheduler.step(total_loss / len(val_loader))
-    return total_loss, accuracy
+    return total_loss, accuracy, per_class_accuracy
 
 
 def val_ensemble(val_loader, model, criterion, cuda, scheduler, model_a, model_b):
@@ -603,11 +676,11 @@ def val_ensemble(val_loader, model, criterion, cuda, scheduler, model_a, model_b
             all_batch_outputs = np.concatenate((all_batch_outputs, outputs_clone), axis=0)
             all_batch_targets = np.concatenate((all_batch_targets, targets_clone), axis=0)
     accuracy = calc_accuracy(all_batch_outputs, all_batch_targets)
-    scheduler.step(total_loss / len(val_loader))
+    # scheduler.step(total_loss / len(val_loader))
     return total_loss, accuracy
 
 
-def test(test_loader, model, cuda, df_test, vis_file_out):
+def test(test_loader, model, classifier, cuda, df_test, vis_file_out):
     # switch to evaluate mode
     model.eval()
     # end = time.time()
@@ -620,7 +693,14 @@ def test(test_loader, model, cuda, df_test, vis_file_out):
         if args.arch == "inception":
             outputs = model(inputs)
         else:
-            outputs = model(inputs)
+            if args.use_saved_feature_vecs == 1:
+                # outputs = model(inputs)
+                outputs = model.features(inputs)
+                outputs = model.avg_pool(outputs)
+                outputs = outputs.view(outputs.size(0), -1)
+                outputs = classifier(outputs)
+            else:
+                outputs = model(inputs)
 
         if batch_idx == 0:
             outputs_soft = F.softmax(outputs.clone(), dim=1)
