@@ -2,8 +2,6 @@ from torch.utils.data import Dataset
 from PIL import Image
 from dataset.oxford_dataset import oxford_dataset
 from pathlib import Path
-
-
 '''
 kaggle dog breed identification dataset
 '''
@@ -13,14 +11,16 @@ class DBI_dataset(Dataset):
     def __init__(self, img_folder, df_train, df_test, use_oxford, is_train=True, transform=None):
         self.root_folder = img_folder
         self.labels_list = list(df_test.columns)
+        # get all img paths
         self.imgs = [img_path for img_path in self.root_folder.iterdir()]
         self.transform = transform
+        # classes which perform weak and are present at oxford, we only use those
         self.weak_classes_from_oxford = ['beagle', 'staffordshire_bullterrier', 'yorkshire_terrier']
         if use_oxford == 1:
             self.use_oxford = True
         else:
             self.use_oxford = False
-        # check that all the imgs has labels in the csv
+        # filter imgs with no labels in the csv
         if is_train:
             img_paths_list = []
             for img_path in self.imgs:
@@ -31,13 +31,17 @@ class DBI_dataset(Dataset):
             self.imgs_paths = self.imgs
         self.img_num = len(self.imgs_paths)
         print("kaggle dataset size without oxford: ", self.img_num)
+        # dictionary from class name to class idx
         self.class_2_idx = {self.labels_list[i]: i for i in range(len(self.labels_list))}
+        # dictionary from class index to class name
         self.idx_2_class = {v: k for k, v in self.class_2_idx.items()}
         self.is_train = is_train
         self.test_names = df_test.index
         if self.is_train:
+            # save appropriate training targets
             self.train_targets = [self.class_2_idx[df_train.loc[self.imgs_paths[i].name.split('.')[0]]['breed']]
                                   for i in range(self.img_num)]
+            # add oxford data in the end
             if self.use_oxford:
                 oxford_imgs_path = Path('./data/oxford_pets/images')
                 oxfordDataset = oxford_dataset(oxford_imgs_path, transform=self.transform)
