@@ -32,7 +32,7 @@ parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--train_batch', default=4, type=int, metavar='N',
                     help='train batchsize (default: 8)')
-parser.add_argument('--test_batch', default=4, type=int, metavar='N',
+parser.add_argument('--test_batch', default=2, type=int, metavar='N',
                     help='test batchsize (default: 128)')
 parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--lr_reduce', default=0.3, type=float, help='lr reduce on plateau factor')
@@ -45,7 +45,8 @@ parser.add_argument('--env_name', type=str, default='DBINasnetAllPretrainedKaggl
 
 parser.add_argument('--checkpoint', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/', type=str, metavar='PATH',
                     help='path to save models (default: checkpoint)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest base model for continue a base model run (default: none)')
+parser.add_argument('--resume', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;28;23;4best.pkl',
+                    type=str, metavar='PATH', help='path to latest full model for continuing a full model run (default: none)')
 parser.add_argument('--resume_top_module', default='',
                     type=str, metavar='PATH', help='path to load top module (classifier only) (default: none)')
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;12;18best.pkl
@@ -56,8 +57,8 @@ parser.add_argument('--resume_top_module', default='',
 # Architecture
 parser.add_argument('--transfer_oxford', default='',
                     type=str, metavar='PATH', help='path to model pretrained on oxford pets model (default: none)')
-parser.add_argument('--pretrained_kaggle', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19;3;27;0;4best.pkl',
-                    type=str, metavar='PATH', help='path to base model pretrained on kaggle  (default: none)')
+parser.add_argument('--pretrained_kaggle', default='',
+                    type=str, metavar='PATH', help='path to base model pretrained on kaggle, only works with  use_saved_feature_vecs==1 (default: none)')
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;19;0last.pkl
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/oxford/oxfordNasnet192019;3;24;19;21best.pkl
 # DBINasnet19OxfordPretrained2019;3;27;0;4best.pkl
@@ -68,10 +69,10 @@ parser.add_argument('--train_path', default='./data/kaggle_dbi/train', type=str,
 parser.add_argument('--train_labels_path', default='./data/kaggle_dbi/labels.csv', type=str, metavar='PATH', help='path to train kaggle labels data')
 parser.add_argument('--test_path', default='./data/kaggle_dbi/test', type=str, metavar='PATH', help='path to test kaggle image data')
 parser.add_argument('--file_path_inputs_npy_to_load',
-                    default='',
+                    default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputsDBINasnetAllPretrainedKaggleTopOnly2019;3;29;16;44.npy',
                     type=str, metavar='PATH', help='path to saved feature vecs')
 parser.add_argument('--file_path_targets_npy_to_load',
-                    default='',
+                    default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targetsDBINasnetAllPretrainedKaggleTopOnly2019;3;29;16;44.npy',
                     type=str, metavar='PATH', help='path to saved targets')
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputsDBINasnet19OxfordTopOnly2019;3;28;22;25.npy
 # C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targetsDBINasnet19OxfordTopOnly2019;3;28;22;25.npy
@@ -85,14 +86,13 @@ parser.add_argument('--freezeLayersNum', type=int, default=19,
 
 parser.add_argument('--oxford_augment', type=int, default=0, help='add oxfords images for training 0(no)/1(yes)')
 parser.add_argument('--print_per_class_acc', type=int, default=0, help='print per class accuracy 0(no)/1(yes)')
-parser.add_argument('--evaluate', type=int, default=0, help='evaluate (ONLY!) model on validation and test sets? 0(no)/1(yes)')
-parser.add_argument('--use_saved_feature_vecs', type=int, default=1,
+parser.add_argument('--evaluate', type=int, default=1, help='evaluate (ONLY!) model on validation and test sets? 0(no)/1(yes)')
+parser.add_argument('--use_saved_feature_vecs', type=int, default=0,
                     help='use Saved feature vecs for training data for better performance in long runs. if file_path_(inputs/tagets)_npy_to_load isnt given then creates such files 0(no)/1(yes)')
 parser.add_argument('--random_angle', type=float, default=10, help='Angle of random augmentation.')
-parser.add_argument('--ensemble', type=int, default=0, help='should we use model ensemble? 0(no)/1(yes)')
-parser.add_argument('--ensemble_path_a', default='', type=str, metavar='PATH', help='path to 1st ensemble model (default: none)')
-parser.add_argument('--ensemble_path_b', default='', type=str, metavar='PATH', help='path to 2nd ensemble model (default: none)')
-parser.add_argument('--ensemble_path_c', default='', type=str, metavar='PATH', help='path to 3rd ensemble model (default: none)')
+parser.add_argument('--ensemble', type=int, default=0, help='should we use model ensemble? does not support "use_saved_feature_vecs==1" (no)/1(yes)')
+parser.add_argument('--ensemble_path_a', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19Oxford2019;3;28;22;58best.pkl', type=str, metavar='PATH', help='path to 1st ensemble model (default: none)')
+parser.add_argument('--ensemble_path_b', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;28;23;4best.pkl', type=str, metavar='PATH', help='path to 2nd ensemble model (default: none)')
 
 #Device options
 
@@ -277,27 +277,17 @@ def main():
 
     # do model ensemble
     if args.ensemble == 1:
-        model_a = models.inception_v3(pretrained=True)
-        num_ftrs = model_a.fc.in_features
-        model_a.fc = nn.Linear(num_ftrs, out_size)
-        num_ftrs = model_a.AuxLogits.fc.in_features
-        model_a.AuxLogits.fc = nn.Linear(num_ftrs, out_size)
-        model_b = models.resnet101(pretrained=True)
-        num_ftrs = model_b.fc.in_features
-        model_b.fc = nn.Linear(num_ftrs, out_size)
         print('==> doing ensemble..')
         logger.info('==> doing ensemble..')
+        model_b = pretrainedmodels.nasnetalarge(num_classes=1000, pretrained='imagenet')
+        num_ftrs = model_b.last_linear.in_features
+        model_b.last_linear = nn.Linear(num_ftrs, out_size)
         assert os.path.isfile(args.ensemble_path_a), 'Error: no checkpoint directory found!'
-        # args.checkpoint = os.path.dirname(args.ensemble_path_a)
         checkpointa = torch.load(args.ensemble_path_a)
         checkpointb = torch.load(args.ensemble_path_b)
-        # best_val_loss = checkpoint['best_val_loss']
-        # start_epoch = checkpoint['epoch']
-        model_a.load_state_dict(checkpointa['state_dict'])
-        # optimizera.load_state_dict(checkpointa['optimizer'])
+        model.load_state_dict(checkpointa['state_dict'])
         model_b.load_state_dict(checkpointb['state_dict'])
-        # optimizerb.load_state_dict(checkpointb['optimizer'])
-        model_a.cuda()
+        model.cuda()
         model_b.cuda()
 
     # continue training of a model
@@ -450,9 +440,9 @@ def main():
     if args.evaluate == 1:
         print('\nEvaluation only')
         logger.info('\nEvaluation only')
-
+        # not checking val loss and acc in ensemble mode
         if args.ensemble == 1:
-            val_loss, val_acc = val_ensemble(val_loader, model, criterion, use_cuda, scheduler, model_a, model_b)
+                test(test_loader, model, model_b, None, use_cuda, df_test, vis_file_out)
         else:
             # check val accuracy
             if args.use_saved_feature_vecs == 1:
@@ -470,9 +460,9 @@ def main():
                 # print(feature_vecs_targets)
                 # top_only_test_dataset = DBI_dataset_test_time(torch.FloatTensor(feature_vecs_inputs), feature_vecs_targets)
                 # test_loader = DataLoader(top_only_test_dataset, batch_size=4096, shuffle=False)
-                test(test_loader, model, classifierModel, use_cuda, df_test, vis_file_out)
+                test(test_loader, model, None, classifierModel, use_cuda, df_test, vis_file_out)
             else:
-                test(test_loader, model, _, use_cuda, df_test, vis_file_out)
+                test(test_loader, model, None, None, use_cuda, df_test, vis_file_out)
         return
 
     # Train and val main loop
@@ -627,46 +617,7 @@ def val(val_loader, model, criterion, cuda, scheduler):
     return total_loss, accuracy, per_class_accuracy
 
 
-def val_ensemble(val_loader, model, criterion, cuda, scheduler, model_a, model_b):
-    # switch to evaluate mode
-    model_a.eval()
-    model_b.eval()
-    total_loss = 0
-    for batch_idx, (inputs_inc, inputs_resnet, targets) in enumerate(val_loader):
-        if cuda:
-            inputs_inc, inputs_resnet, targets = inputs_inc.cuda(), inputs_resnet.cuda(), targets.cuda()
-        # compute output
-
-        if args.ensemble == 1:
-            outputs_a = model_a(inputs_inc)
-            outputs_b = model_b(inputs_resnet)
-            outputs = torch.add(outputs_a, outputs_b)
-            outputs = torch.div(outputs, 2)
-
-
-        loss = criterion(outputs, targets)
-
-        total_loss += loss.item()
-        # classifier_real_accuracy = np.mean((outputs_sig_np >= 0.5) == targets.data.cpu().numpy())
-        # prints the precision recall curve and calculates average_precision
-        if batch_idx == 0:
-            outputs_soft = F.softmax(outputs.clone(), dim=1)
-            outputs_clone = outputs_soft.data.cpu().numpy()
-            targets_clone = targets.clone().data.cpu().numpy()
-            all_batch_outputs = outputs_clone
-            all_batch_targets = targets_clone
-        else:
-            outputs_soft = F.softmax(outputs.clone(), dim=1)
-            outputs_clone = outputs_soft.data.cpu().numpy()
-            targets_clone = targets.clone().data.cpu().numpy()
-            all_batch_outputs = np.concatenate((all_batch_outputs, outputs_clone), axis=0)
-            all_batch_targets = np.concatenate((all_batch_targets, targets_clone), axis=0)
-    accuracy = calc_accuracy(all_batch_outputs, all_batch_targets)
-    # scheduler.step(total_loss / len(val_loader))
-    return total_loss, accuracy
-
-
-def test(test_loader, model, classifier, cuda, df_test, vis_file_out):
+def test(test_loader, model_a, model_b, classifier, cuda, df_test, vis_file_out):
     '''
     Create the kagggle excel result submission file over the test data
     :param test_loader: data loader of test data
@@ -678,33 +629,44 @@ def test(test_loader, model, classifier, cuda, df_test, vis_file_out):
     :return: None
     '''
     # switch to evaluate mode
-    model.eval()
+    model_a.eval()
     print("test loader length: ", len(test_loader))
     for batch_idx, (inputs, targets) in enumerate(test_loader):
         if cuda:
             inputs = inputs.cuda()
         # compute output
-        if args.arch == "inception":
-            outputs = model(inputs)
+        if args.use_saved_feature_vecs == 1:
+            outputs = model_a.features(inputs)
+            outputs = model_a.avg_pool(outputs)
+            outputs = outputs.view(outputs.size(0), -1)
+            outputs_a = classifier(outputs)
+        elif args.ensemble == 1:
+            outputs_a = model_a(inputs)
+            outputs_b = model_b(inputs)
         else:
-            if args.use_saved_feature_vecs == 1:
-                outputs = model.features(inputs)
-                outputs = model.avg_pool(outputs)
-                outputs = outputs.view(outputs.size(0), -1)
-                outputs = classifier(outputs)
-            else:
-                outputs = model(inputs)
+            outputs_a = model_a(inputs)
 
         # save whole data for accuracy calculations
         if batch_idx == 0:
-            outputs_soft = F.softmax(outputs.clone(), dim=1)
-            outputs_clone = outputs_soft.data.cpu().numpy()
+            outputs_soft_a = F.softmax(outputs_a.clone(), dim=1)
+            if args.ensemble == 1:
+                outputs_soft_b = F.softmax(outputs_b.clone(), dim=1)
+                outputs_clone = torch.add(outputs_soft_a, outputs_soft_b)
+                outputs_clone = torch.div(outputs_clone, 2)
+                outputs_clone = outputs_clone.data.cpu().numpy()
+            else:
+                outputs_clone = outputs_soft_a.data.cpu().numpy()
             targets_clone = np.asarray(targets).copy()
             all_batch_outputs = outputs_clone
             all_batch_targets = targets_clone
         else:
-            outputs_soft = F.softmax(outputs.clone(), dim=1)
-            outputs_clone = outputs_soft.data.cpu().numpy()
+            outputs_soft_a = F.softmax(outputs_a.clone(), dim=1)
+            if args.ensemble == 1:
+                outputs_soft_b = F.softmax(outputs_b.clone(), dim=1)
+                outputs_clone = torch.add(outputs_soft_a, outputs_soft_b)
+                outputs_clone = torch.div(outputs_clone, 2).data.cpu().numpy()
+            else:
+                outputs_clone = outputs_soft_a.data.cpu().numpy()
             targets_clone = np.asarray(targets).copy()
             all_batch_outputs = np.concatenate((all_batch_outputs, outputs_clone), axis=0)
             all_batch_targets = np.concatenate((all_batch_targets, targets_clone), axis=0)
