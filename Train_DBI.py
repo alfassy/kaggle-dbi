@@ -32,7 +32,7 @@ parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--train_batch', default=4, type=int, metavar='N',
                     help='train batchsize (default: 8)')
-parser.add_argument('--test_batch', default=2, type=int, metavar='N',
+parser.add_argument('--test_batch', default=4, type=int, metavar='N',
                     help='test batchsize (default: 128)')
 parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--lr_reduce', default=0.3, type=float, help='lr reduce on plateau factor')
@@ -42,26 +42,18 @@ parser.add_argument('--weight_decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--env_name', type=str, default='DBINasnetAllPretrainedKaggleTopOnly', help='Environment name for naming purposes')
 # Checkpoints
-
 parser.add_argument('--checkpoint', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/', type=str, metavar='PATH',
                     help='path to save models (default: checkpoint)')
-parser.add_argument('--resume', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;28;23;4best.pkl',
+parser.add_argument('--resume', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/Best_model.pkl',
                     type=str, metavar='PATH', help='path to latest full model for continuing a full model run (default: none)')
 parser.add_argument('--resume_top_module', default='',
                     type=str, metavar='PATH', help='path to load top module (classifier only) (default: none)')
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;12;18best.pkl
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;12;18best.pkl 0.27
-# kaggle_dbiDBINasnet192019;3;24;18;29best.pkl
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/inception_trainDBIInceptionHalf2019;3;24;3;7best.pkl
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;24;16;10best.pkl
+
 # Architecture
 parser.add_argument('--transfer_oxford', default='',
                     type=str, metavar='PATH', help='path to model pretrained on oxford pets model (default: none)')
 parser.add_argument('--pretrained_kaggle', default='',
                     type=str, metavar='PATH', help='path to base model pretrained on kaggle, only works with  use_saved_feature_vecs==1 (default: none)')
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet19OxfordPretrained2019;3;27;19;0last.pkl
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/oxford/oxfordNasnet192019;3;24;19;21best.pkl
-# DBINasnet19OxfordPretrained2019;3;27;0;4best.pkl
 parser.add_argument('--arch', '-a', metavar='ARCH', default='nasnet',
                     help='model architecture:(resnet18/ inception/ nasnet)')
 # Miscs
@@ -69,13 +61,12 @@ parser.add_argument('--train_path', default='./data/kaggle_dbi/train', type=str,
 parser.add_argument('--train_labels_path', default='./data/kaggle_dbi/labels.csv', type=str, metavar='PATH', help='path to train kaggle labels data')
 parser.add_argument('--test_path', default='./data/kaggle_dbi/test', type=str, metavar='PATH', help='path to test kaggle image data')
 parser.add_argument('--file_path_inputs_npy_to_load',
-                    default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputsDBINasnetAllPretrainedKaggleTopOnly2019;3;29;16;44.npy',
+                    default='',
                     type=str, metavar='PATH', help='path to saved feature vecs')
 parser.add_argument('--file_path_targets_npy_to_load',
-                    default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targetsDBINasnetAllPretrainedKaggleTopOnly2019;3;29;16;44.npy',
+                    default='',
                     type=str, metavar='PATH', help='path to saved targets')
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_inputsDBINasnet19OxfordTopOnly2019;3;28;22;25.npy
-# C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/feature_vecs_targetsDBINasnet19OxfordTopOnly2019;3;28;22;25.npy
+
 parser.add_argument('--manualSeed', type=int, help='manual seed for random function')
 parser.add_argument('--debug_mode', type=int, default=0, help='activate fast debug mode?(default: 0) 0(no)/1(yes)')
 
@@ -84,8 +75,8 @@ parser.add_argument('--freezeLayers', type=str, default='all',
 parser.add_argument('--freezeLayersNum', type=int, default=19,
                     help='how many layers should we freeze? options:int')
 
-parser.add_argument('--oxford_augment', type=int, default=0, help='add oxfords images for training 0(no)/1(yes)')
-parser.add_argument('--print_per_class_acc', type=int, default=0, help='print per class accuracy 0(no)/1(yes)')
+parser.add_argument('--oxford_augment', type=int, default=1, help='add oxfords images for training 0(no)/1(yes)')
+parser.add_argument('--print_per_class_acc', type=int, default=1, help='print per class accuracy 0(no)/1(yes)')
 parser.add_argument('--evaluate', type=int, default=1, help='evaluate (ONLY!) model on validation and test sets? 0(no)/1(yes)')
 parser.add_argument('--use_saved_feature_vecs', type=int, default=0,
                     help='use Saved feature vecs for training data for better performance in long runs. if file_path_(inputs/tagets)_npy_to_load isnt given then creates such files 0(no)/1(yes)')
@@ -95,7 +86,6 @@ parser.add_argument('--ensemble_path_a', default='C:/Users/Alfassy/PycharmProjec
 parser.add_argument('--ensemble_path_b', default='C:/Users/Alfassy/PycharmProjects/Dog_Breed_Identification/saved_models/kaggle_dbi/DBINasnet192019;3;28;23;4best.pkl', type=str, metavar='PATH', help='path to 2nd ensemble model (default: none)')
 
 #Device options
-
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
 print(args)

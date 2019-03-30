@@ -200,7 +200,7 @@ oxford_dog_breeds_to_kaggle = {
     'pug': 'pug',  # high acc
     'saint_bernard': 'saint_bernard',  # med acc
     'samoyed': 'samoyed',  # high acc
-    'scottish_terrier': 'scotch_terrier',  # high acc
+    'scottish_terrier': 'scotchq_terrier',  # high acc
     'shiba_inu': None,
     'staffordshire_bull_terrier': 'staffordshire_bullterrier',  # low acc
     'wheaten_terrier': 'soft-coated_wheaten_terrier',  # med acc
